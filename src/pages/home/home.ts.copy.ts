@@ -19,18 +19,12 @@ export class HomePage {
   source;
   stream: MediaStream;
   distortion;
-  gainNode;
-  biquadFilter;
-  convolver;
   test;
-  drawVisual;
-
-  
-  
   // bufferSize
   constructor(public navCtrl: NavController,
     private platform: Platform,
   ) {
+    // @ViewChild('oscilloscope') oscilloscopeCanvas : Canvas;
 
     this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     // this.audioCtx =  audioContext;
@@ -47,15 +41,11 @@ export class HomePage {
     // this.source.connect(this.analyser);
     // this.analyser.connect(this.distortion);
 
-    // this.analyser.fftSize = 256;
+    this.analyser.fftSize = 256;
     this.analyser.minDecibels = -90;
     this.analyser.maxDecibels = -10;
     this.analyser.smoothingTimeConstant = 0.85;
 
-    this.distortion = this.audioCtx.createWaveShaper();
-    this.gainNode = this.audioCtx.createGain();
-    this.biquadFilter = this.audioCtx.createBiquadFilter();
-    this.convolver = this.audioCtx.createConvolver();
 
     this.bufferLength = this.analyser.frequencyBinCount;
     this.dataArray = new Uint8Array(this.bufferLength);
@@ -66,13 +56,13 @@ export class HomePage {
   }
   ionViewDidLoad() {
     console.log('in ionViewDidLoad');
-    // set up canvas context for visualizer
     // Get a canvas defined with ID "oscilloscope"
     this.canvas = document.getElementById("oscilloscope");
+    // console.log('this.canvas: ' + this.canvas );
+    // this.canvas = document.createElement("canvas");
     this.canvasCtx = this.canvas.getContext("2d");
 
     this.test = 1;
-
     // Listen to audioinput events 
     myComponent = this;
     window.addEventListener("audioinput", this.onAudioInput, false);
@@ -80,40 +70,8 @@ export class HomePage {
     window.addEventListener("audioinputerror", this.onAudioInputError, false);
 
     this.capture();
-    // DrawBars();
+    DrawBars();
   }
-
-  capture() {
-    // Start capturing audio from the microphone 
-    if (this.platform.is('cordova')) {
-      audioinput.start({
-        // Here we've changed the bufferSize from the default to 8192 bytes. 
-        bufferSize: this.bufferLength,
-        normalize: true,
-        normalizationFactor: 1024,
-        streamToWebAudio: true,
-
-        // Used in conjunction with streamToWebAudio. If no audioContext is given, 
-        // one (prefixed) will be created by the plugin.
-        audioContext: this.audioCtx,
-      });
-
-      audioinput.connect(this.analyser);
-      this.analyser.connect(this.distortion);
-      this.distortion.connect(this.biquadFilter);
-      this.biquadFilter.connect(this.convolver);
-      this.convolver.connect(this.gainNode);
-      this.gainNode.connect(this.audioCtx.destination);
-
-      this.visualize();
-      // this.voiceChange();
-
-    }
-
-    // Stop capturing audio input 
-    // audioinput.stop()
-  }
-
   onAudioInput(evt) {
     // console.log('myComponent.test: ' + JSON.stringify(myComponent.test) );
     // console.log('myComponent.analyser.frequencyBinCount: ' + JSON.stringify(myComponent.analyser.frequencyBinCount));
@@ -135,6 +93,25 @@ export class HomePage {
     alert("onAudioInputError event recieved: " + JSON.stringify(error));
   };
 
+  capture() {
+    // Start capturing audio from the microphone 
+    if (this.platform.is('cordova')) {
+      audioinput.start({
+        // Here we've changed the bufferSize from the default to 8192 bytes. 
+        bufferSize: this.bufferLength,
+        normalize: true,
+        normalizationFactor: 16,
+        streamToWebAudio: this.audioCtx,
+
+        // Used in conjunction with streamToWebAudio. If no audioContext is given, 
+        // one (prefixed) will be created by the plugin.
+        audioContext: null,
+      });
+    }
+
+    // Stop capturing audio input 
+    // audioinput.stop()
+  }
 
 
   draw() {
@@ -172,157 +149,8 @@ export class HomePage {
     this.canvasCtx.stroke();
   }
 
-  // distortion curve for the waveshaper, thanks to Kevin Ennis
-  // http://stackoverflow.com/questions/22312841/waveshaper-node-in-webaudio-how-to-emulate-distortion
-
-  makeDistortionCurve(amount) {
-    var k = typeof amount === 'number' ? amount : 50,
-      n_samples = 44100,
-      curve = new Float32Array(n_samples),
-      deg = Math.PI / 180,
-      i = 0,
-      x;
-    for (; i < n_samples; ++i) {
-      x = i * 2 / n_samples - 1;
-      curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
-    }
-    return curve;
-  };
-
-  
-visualize() {
-  var WIDTH = this.canvas.width;
-  var HEIGHT = this.canvas.height;
-  var component = this;
-
-  // var visualSetting = visualSelect.value;
-  var visualSetting = 'frequencybars';
-  console.log(visualSetting);
-
-  if(visualSetting == "sinewave") {
-    this.analyser.fftSize = 2048;
-    var bufferLength = this.analyser.fftSize;
-    console.log(bufferLength);
-    var dataArray = new Uint8Array(bufferLength);
-
-    this.canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
-    
-    var drawWaves = function() {
-
-      component.drawVisual = requestAnimationFrame(drawWaves);
-
-      component.analyser.getByteTimeDomainData(dataArray);
-
-      component.canvasCtx.fillStyle = 'rgb(200, 200, 200)';
-      component.canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
-
-      component.canvasCtx.lineWidth = 2;
-      component.canvasCtx.strokeStyle = 'rgb(0, 0, 0)';
-
-      component.canvasCtx.beginPath();
-
-      var sliceWidth = WIDTH * 1.0 / bufferLength;
-      var x = 0;
-
-      for(var i = 0; i < bufferLength; i++) {
-
-        var v = dataArray[i] / 128.0;
-        var y = v * HEIGHT/2;
-
-        if(i === 0) {
-          component.canvasCtx.moveTo(x, y);
-        } else {
-          component.canvasCtx.lineTo(x, y);
-        }
-
-        x += sliceWidth;
-      }
-
-      component.canvasCtx.lineTo(component.canvas.width, component.canvas.height/2);
-      component.canvasCtx.stroke();
-    };
-
-    drawWaves();
-
-  } else if(visualSetting == "frequencybars") {
-    this.analyser.fftSize = 256;
-    bufferLength = this.analyser.frequencyBinCount;
-    console.log(bufferLength);
-    dataArray = new Uint8Array(bufferLength);
-
-    this.canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
-
-    var drawBars = function() {
-      component.drawVisual = requestAnimationFrame(drawBars);
-
-      component.analyser.getByteFrequencyData(dataArray);
-
-      component.canvasCtx.fillStyle = 'rgb(0, 0, 0)';
-      component.canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
-
-      var barWidth = (WIDTH / bufferLength) * 2.5;
-      var barHeight;
-      var x = 0;
-
-      for(var i = 0; i < bufferLength; i++) {
-        barHeight = dataArray[i];
-
-        component.canvasCtx.fillStyle = 'rgb(' + (barHeight+100) + ',50,50)';
-        component.canvasCtx.fillRect(x,HEIGHT-barHeight/2,barWidth,barHeight/2);
-
-        x += barWidth + 1;
-      }
-    };
-
-    drawBars();
-
-  } else if(visualSetting == "off") {
-    this.canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
-    this.canvasCtx.fillStyle = "red";
-    this.canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
-  }
 
 }
-
-voiceChange() {
-
-  this.distortion.oversample = '4x';
-  this.biquadFilter.gain.value = 0;
-  this.convolver.buffer = undefined;
-
-  var voiceSetting = 'off';
-  console.log(voiceSetting);
-
-  if(voiceSetting == "distortion") {
-    this.distortion.curve = this.makeDistortionCurve(400);
-  } else if(voiceSetting == "convolver") {
-    // this.convolver.buffer = this.concertHallBuffer;
-  } else if(voiceSetting == "biquad") {
-    this.biquadFilter.type = "lowshelf";
-    this.biquadFilter.frequency.value = 1000;
-    this.biquadFilter.gain.value = 25;
-  } else if(voiceSetting == "off") {
-    console.log("Voice settings turned off");
-  }
-
-}
-
-// event listeners to change visualize and voice settings
-
-// visualSelect.onchange = function() {
-//   window.cancelAnimationFrame(this.drawVisual);
-//   this.visualize();
-// }
-
-// voiceSelect.onchange = function() {
-//   this.voiceChange();
-// }
-
-
-}
-
-/*
-
 function draw() {
   var u8array = new Uint8Array(myComponent.dataArray);
 
@@ -379,4 +207,28 @@ function DrawBars() {
   }
 }
 
-   */
+    // myComponent.canvasCtx.lineWidth = 2;
+    // myComponent.canvasCtx.strokeStyle = 'rgb(0, 255, 0)';
+
+    // myComponent.canvasCtx.beginPath();
+
+    // var sliceWidth = myComponent.canvas.width * 1.0 / myComponent.bufferLength;
+    // var x = 0;
+
+    // for (var i = 0; i < myComponent.bufferLength; i++) {
+
+    //   var v = myComponent.dataArray[i] / 128.0;
+    //   var y = myComponent.canvas.height - (v * myComponent.canvas.height / 2);
+
+    //   if (i === 0) {
+    //     myComponent.canvasCtx.moveTo(x, y);
+    //   } else {
+    //     myComponent.canvasCtx.lineTo(x, y);
+    //   }
+
+    //   x += sliceWidth;
+    // }
+
+    // myComponent.canvasCtx.lineTo(myComponent.canvas.width, myComponent.canvas.height / 2);
+    // myComponent.canvasCtx.stroke();
+// }
