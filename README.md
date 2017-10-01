@@ -1,5 +1,5 @@
 ## Description
-This is an implementation of Mozilla's Visualizations with Web Audio API in Ionic 2. It replicates [voice-change-o-matic](https://mdn.github.io/voice-change-o-matic/) and demonstrates how voice can be recorded and also processed and visualized in Ionic.
+This is an implementation of Mozilla's Visualizations with Web Audio API in Ionic 2. It replicates the [voice-change-o-matic](https://mdn.github.io/voice-change-o-matic/) app and demonstrates how voice can be recorded and also processed and visualized in Ionic.
 
 ## How to run
 ```csh
